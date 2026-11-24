@@ -1,0 +1,221 @@
+{
+ "_comment": "Starter list of remote-friendly companies on public job boards (all departments: engineering, design, product, QA, ...). Setup adds companies for the person's field and region to DATA/companies.json.",
+ "companies": [
+  {
+   "name": "Alpaca",
+   "ats": "greenhouse",
+   "slug": "alpaca",
+   "verified": true,
+   "why": "agent-first brokerage infra; many Remote Europe roles"
+  },
+  {
+   "name": "GitLab",
+   "ats": "greenhouse",
+   "slug": "gitlab",
+   "verified": true,
+   "why": "all-remote; TS AI Clients roles"
+  },
+  {
+   "name": "Coder",
+   "ats": "ashby",
+   "slug": "coder",
+   "verified": true,
+   "why": "agentic engineering; Europe roles"
+  },
+  {
+   "name": "n8n",
+   "ats": "ashby",
+   "slug": "n8n",
+   "verified": true,
+   "why": "workflow automation + AI agents, TS/Node, remote Europe"
+  },
+  {
+   "name": "ClickUp",
+   "ats": "ashby",
+   "slug": "clickup",
+   "verified": true,
+   "why": "TS/Node backend, Central Europe remote"
+  },
+  {
+   "name": "Checkly",
+   "ats": "ashby",
+   "slug": "checkly",
+   "verified": true,
+   "why": "TS devtools, remote Europe"
+  },
+  {
+   "name": "Langfuse",
+   "ats": "ashby",
+   "slug": "langfuse",
+   "verified": true,
+   "why": "LLM observability/evals, TS"
+  },
+  {
+   "name": "Grafana Labs",
+   "ats": "greenhouse",
+   "slug": "grafanalabs",
+   "verified": true,
+   "why": "remote EMEA"
+  },
+  {
+   "name": "Elastic",
+   "ats": "greenhouse",
+   "slug": "elastic",
+   "verified": true,
+   "why": "distributed, remote EMEA"
+  },
+  {
+   "name": "Vercel",
+   "ats": "greenhouse",
+   "slug": "vercel",
+   "verified": true,
+   "why": "TS, AI SDK, remote"
+  },
+  {
+   "name": "Canonical",
+   "ats": "greenhouse",
+   "slug": "canonical",
+   "verified": true,
+   "why": "remote worldwide"
+  },
+  {
+   "name": "Remote.com",
+   "ats": "greenhouse",
+   "slug": "remotecom",
+   "verified": true,
+   "why": "remote-first, hires anywhere"
+  },
+  {
+   "name": "Bitwarden",
+   "ats": "greenhouse",
+   "slug": "bitwarden",
+   "verified": true,
+   "why": "identity/security, remote"
+  },
+  {
+   "name": "Teleport",
+   "ats": "greenhouse",
+   "slug": "teleport",
+   "verified": false,
+   "why": "identity & access, remote | slug 404 on 2026-11-24 - find the right board and re-enable",
+   "disabled": true
+  },
+  {
+   "name": "Apollo GraphQL",
+   "ats": "greenhouse",
+   "slug": "apollographql",
+   "verified": false,
+   "why": "GraphQL/TS, MCP work | slug 404 on 2026-11-24 - find the right board and re-enable",
+   "disabled": true
+  },
+  {
+   "name": "Temporal",
+   "ats": "greenhouse",
+   "slug": "temporaltechnologies",
+   "verified": false,
+   "why": "workflow orchestration | slug 404 on 2026-11-24 - find the right board and re-enable",
+   "disabled": true
+  },
+  {
+   "name": "Supabase",
+   "ats": "ashby",
+   "slug": "supabase",
+   "verified": true,
+   "why": "remote worldwide, TS"
+  },
+  {
+   "name": "PostHog",
+   "ats": "ashby",
+   "slug": "posthog",
+   "verified": true,
+   "why": "remote EU, TS"
+  },
+  {
+   "name": "Linear",
+   "ats": "ashby",
+   "slug": "linear",
+   "verified": true,
+   "why": "TS, remote EU/US"
+  },
+  {
+   "name": "Deel",
+   "ats": "ashby",
+   "slug": "deel",
+   "verified": true,
+   "why": "remote anywhere, TS/Node"
+  },
+  {
+   "name": "Clerk",
+   "ats": "ashby",
+   "slug": "clerk",
+   "verified": true,
+   "why": "auth/identity, TS"
+  },
+  {
+   "name": "WorkOS",
+   "ats": "ashby",
+   "slug": "workos",
+   "verified": true,
+   "why": "auth/authorization (FGA), TS, MCP auth"
+  },
+  {
+   "name": "Stytch",
+   "ats": "ashby",
+   "slug": "stytch",
+   "verified": true,
+   "why": "auth/identity"
+  },
+  {
+   "name": "AuthZed",
+   "ats": "ashby",
+   "slug": "authzed",
+   "verified": true,
+   "why": "authorization (SpiceDB)"
+  },
+  {
+   "name": "Oso",
+   "ats": "ashby",
+   "slug": "oso",
+   "verified": false,
+   "why": "authorization | slug 404 on 2026-11-24 - find the right board and re-enable",
+   "disabled": true
+  },
+  {
+   "name": "Zapier",
+   "ats": "ashby",
+   "slug": "zapier",
+   "verified": true,
+   "why": "automation + agents, remote"
+  },
+  {
+   "name": "Doist",
+   "ats": "ashby",
+   "slug": "doist",
+   "verified": false,
+   "why": "remote anywhere | slug 404 on 2026-11-24 - find the right board and re-enable",
+   "disabled": true
+  },
+  {
+   "name": "Sanity",
+   "ats": "ashby",
+   "slug": "sanity",
+   "verified": true,
+   "why": "TS, remote EU"
+  },
+  {
+   "name": "ElevenLabs",
+   "ats": "ashby",
+   "slug": "elevenlabs",
+   "verified": true,
+   "why": "AI, remote Europe"
+  },
+  {
+   "name": "Mistral AI",
+   "ats": "lever",
+   "slug": "mistral",
+   "verified": false,
+   "why": "AI, Europe | slug 404 on 2026-11-24 - find the right board and re-enable",
+   "disabled": true
+  }
+ ]
+}

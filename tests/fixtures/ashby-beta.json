@@ -1,0 +1,5 @@
+{"jobs":[
+ {"id":"a1","title":"Senior AI Engineer","location":"Poland","secondaryLocations":[{"location":"Germany"}],"publishedAt":"__NOW__","isListed":true,"isRemote":true,"workplaceType":"Remote","jobUrl":"https://example.com/ab/1","descriptionPlain":"LLM agents in TypeScript","compensation":{"compensationTierSummary":"PLN 300K – 400K"}},
+ {"id":"a2","title":"Senior Software Engineer (Identity & Authorization)","location":"Portugal","secondaryLocations":[{"location":"Spain"}],"publishedAt":"__NOW__","isListed":true,"isRemote":true,"workplaceType":"Remote","jobUrl":"https://example.com/ab/2","descriptionPlain":"Authorization, RBAC, OAuth, Node.js, TypeScript, PostgreSQL","compensation":{"compensationTierSummary":"€90K – €130K"}},
+ {"id":"a3","title":"Senior Fullstack Engineer","location":"Berlin","publishedAt":"__NOW__","isListed":true,"isRemote":false,"workplaceType":"Hybrid","jobUrl":"https://example.com/ab/3","descriptionPlain":"hybrid"}
+]}

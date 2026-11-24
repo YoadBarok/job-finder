@@ -1,0 +1,4 @@
+{ "name": "job-finder", "private": true, "version": "0.1.0",
+  "description": "Claude-driven personal job search: find remote roles, tailor a truthful CV, you apply.",
+  "scripts": { "test": "python3 -m unittest discover tests" },
+  "dependencies": { "docx": "^9.0.0" } }

@@ -1,0 +1,6 @@
+{"jobs":[
+ {"id":1,"title":"Senior Software Engineer, Agent Platform","location":{"name":"Remote - Europe"},"first_published":"__NOW__","absolute_url":"https://example.com/gh/1","content":"&lt;p&gt;Build MCP servers and agent tooling in TypeScript and Node.js. Authorization with OpenID AuthZEN.&lt;/p&gt;"},
+ {"id":2,"title":"Senior Backend Engineer","location":{"name":"Remote - US"},"first_published":"__NOW__","absolute_url":"https://example.com/gh/2","content":"&lt;p&gt;Node.js. Candidates must reside in the United States. E-Verify employer.&lt;/p&gt;"},
+ {"id":3,"title":"Senior Software Engineer","location":{"name":"Remote"},"first_published":"__OLD__","absolute_url":"https://example.com/gh/3","content":"old one"},
+ {"id":4,"title":"Senior Product Manager","location":{"name":"Remote - Europe"},"first_published":"__NOW__","absolute_url":"https://example.com/gh/4","content":"PM role"}
+]}

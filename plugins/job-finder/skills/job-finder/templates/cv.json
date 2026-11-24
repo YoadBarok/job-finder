@@ -1,0 +1,12 @@
+{
+  "name": "ALEX EXAMPLE",
+  "headline": "SENIOR SOFTWARE ENGINEER",
+  "contact": [{"t": "Lisbon"}, {"t": "alex@example.com"}, {"t": "github.com/alex-example"}],
+  "profile": "One short paragraph: who you are and the 2-3 themes you want every reader to remember.",
+  "skills": [["Languages", "TypeScript, Node.js"], ["Cloud & Data", "PostgreSQL, AWS"]],
+  "jobs": [
+    {"title": "Software Engineer, Example Corp", "meta": "Jan 2022 – Present (Lisbon)", "bullets": [
+      ["Outcome Label", "What you did and the result (stack in parentheses)."]
+    ]}
+  ]
+}

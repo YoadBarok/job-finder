@@ -1,0 +1,13 @@
+# Personal data never lives in this repo. Keep it in $JOB_FINDER_DATA.
+profile/
+data/
+jobs/
+candidates/
+tracker.csv
+seen.json
+*.local.*
+node_modules/
+__pycache__/
+.env
+.claude/settings.local.json
+job-finder.local.json

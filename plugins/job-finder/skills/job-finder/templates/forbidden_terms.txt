@@ -1,0 +1,4 @@
+# One term per line. Employer-internal names that must never appear in a CV:
+# internal service names, team names, ticket prefixes, internal tool or rollout-mode names, colleagues' names.
+internal-service-name
+TEAM-123

@@ -1,0 +1,12 @@
+{
+  "name": "job-finder",
+  "description": "Job Finder: a personal job-search agent for Claude",
+  "owner": { "name": "Yoad Barok", "url": "https://github.com/YoadBarok" },
+  "plugins": [
+    {
+      "name": "job-finder",
+      "source": "./plugins/job-finder",
+      "description": "Find fresh jobs you can actually take, get a truthful tailored CV and a one-click apply kit for each. For engineers, designers, QA, product and more."
+    }
+  ]
+}
