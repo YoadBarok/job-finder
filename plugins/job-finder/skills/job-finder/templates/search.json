@@ -1,15 +1,32 @@
 {
   "_comment": "Filled in by the setup interview. Patterns are case-insensitive regular expressions matched against job titles.",
-  "homeCountry": ["Your Country", "Your City"],
+  "homeCountry": [
+    "Your Country",
+    "Your City"
+  ],
   "homeUtcOffset": 0,
-  "authorized": ["Your Country"],
+  "authorized": [
+    "Your Country"
+  ],
   "contractorOK": true,
+  "workplaces": [
+    "remote"
+  ],
+  "commuteCities": [],
   "maxAgeDays": 14,
   "minPrescore": 30,
-  "keepGroups": ["A", "B"],
+  "keepGroups": [
+    "A",
+    "B"
+  ],
   "titleRequireAny": [],
   "titleInclude": [],
-  "titleExclude": ["intern", "internship", "working student", "graduate program"],
+  "titleExclude": [
+    "intern",
+    "internship",
+    "working student",
+    "graduate program"
+  ],
   "strongKeywords": [],
   "stackKeywords": []
 }

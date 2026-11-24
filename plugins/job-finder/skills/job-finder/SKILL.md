@@ -39,12 +39,18 @@ reference guides in `references/`. Read a reference file only when you reach tha
 
 Cheapest and safest sources first. Details, eligibility groups and scoring: `references/sourcing.md`.
 1. Job links or job-alert emails the person pastes.
-2. Free public job boards of companies in `companies.json` (Greenhouse, Ashby, Lever):
-   `python3 SCRIPTS/poll_boards.py --data <DATA>`. If the shell has no internet, fetch the same public
-   endpoints with your web-fetch tool, one company at a time (`references/sourcing.md`).
-3. Web search for postings on company career pages and job boards in their field and region.
-4. Paid sources (like Apify) only if criteria.md allows it and the person approves each run and its cost.
-5. LinkedIn: never automate their account. Ask them to paste the link or the description.
+2. **Discover employers** (every search round, not only at setup): web-search each target title on the
+   employers' own job-board sites, e.g. `site:jobs.ashbyhq.com "Creative Director"`, `site:job-boards.greenhouse.io
+   "QA Engineer" Berlin`, `site:jobs.lever.co "Product Designer" remote` (more patterns in `references/sourcing.md`),
+   then pass every posting URL you found to `python3 SCRIPTS/add_boards.py --data <DATA> <urls...>`. It adds
+   the new companies to their list, so the list grows with each search instead of relying on guesses.
+3. Read the job boards of every company on the list: `python3 SCRIPTS/poll_boards.py --data <DATA>` (free, live,
+   dated postings straight from the employer). If the shell has no internet, fetch the same public endpoints
+   with your web-fetch tool, a few companies at a time (`references/sourcing.md`). Boards it can't poll yet are
+   listed at the end: read those career pages with web fetch.
+4. Web search for postings on other career pages and job boards in their field and region.
+5. Paid sources (like Apify) only if criteria.md allows it and the person approves each run and its cost.
+6. LinkedIn: never automate it and never use their account. Ask them to paste the link or the description.
 
 Gate each job before scoring: posted in the last ~14 days, not a repost, the person can legally take it
 (group A, or B with a contractor/EOR route if criteria allows), pay not below their floor (keep and flag

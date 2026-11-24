@@ -23,7 +23,8 @@ show file names. Never write "TBD" and move on: the readiness check treats it as
    (EU citizens → "EU"; US citizens or green-card holders → "United States", and so on). Ask whether they'd
    take contractor or employer-of-record roles in other countries (`contractorOK`).
 3. **What they want:** profession and target titles (e.g. "Senior Product Designer", "QA Automation Engineer",
-   "Product Owner"), seniority, titles to avoid, remote only or also hybrid/on-site (where), must-haves,
+   "Product Owner"), seniority, titles to avoid, **remote only, or also hybrid / on-site, and in which cities**
+   (→ `workplaces` and `commuteCities` in search.json; hybrid/on-site roles are kept only in those cities), must-haves,
    deal-breakers, tools they love and ones they don't know, industries or companies to prefer or avoid.
 4. **Pay floor** with currency and period. Say they can skip it.
 5. **How many jobs** per day or week, and a minimum score (default 70).
@@ -37,7 +38,8 @@ show file names. Never write "TBD" and move on: the readiness check treats it as
 
 Translate (3) into search.json: `titleRequireAny` (patterns a title must contain, e.g. "designer", "qa|quality|test",
 "product owner|product manager"), `titleInclude` (strong-fit words), `titleExclude`, `strongKeywords` (domain
-words), `stackKeywords` (tools). Set `homeCountry`, `homeUtcOffset`, `authorized`, `contractorOK`.
+words), `stackKeywords` (tools). Set `homeCountry`, `homeUtcOffset`, `authorized`, `contractorOK`, `workplaces`
+(any of "remote", "hybrid", "onsite") and `commuteCities`.
 
 **Companies:** the starter list in `config/companies.json` is mostly tech companies, which also hire designers,
 QA and product people. Ask about their field and region, propose 15–30 more companies known to hire remotely

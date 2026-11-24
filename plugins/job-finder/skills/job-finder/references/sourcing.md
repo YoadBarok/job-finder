@@ -13,6 +13,17 @@ JavaScript and come back empty from a plain fetch; use the JSON feed or ask the 
 
 Without a working shell, fetch the feeds with web fetch, a few companies at a time, and apply the same filters.
 
+## Discovering employers (do this every search round)
+The company list must grow from real postings, not guesses. For each target title (and each commute city, if any),
+run web searches on the employers' own job-board sites:
+- `site:jobs.ashbyhq.com "<title>"` · `site:job-boards.greenhouse.io "<title>"` · `site:boards.greenhouse.io "<title>"`
+- `site:jobs.lever.co "<title>"` · `site:apply.workable.com "<title>"` · `site:jobs.smartrecruiters.com "<title>"`
+- `site:recruitee.com "<title>"` · `site:jobs.personio.de "<title>"` · `site:teamtailor.com "<title>"`
+Add a region or city when it helps (`"<title>" Berlin`, `"<title>" "Remote - Europe"`). Collect every posting URL
+from the results and run `add_boards.py --data <DATA> <urls...>`; it recognises the board, dedupes and appends to
+the person's `companies.json`. Then poll. Search results can be stale: only the poll (or opening the posting)
+confirms a job is live and when it was posted.
+
 ## Eligibility groups (from search.json: homeCountry, authorized, contractorOK)
 - **A**: open to where they can work (their country, an authorized country/region, "Europe/EMEA/anywhere/
   worldwide", or a time-zone range that includes theirs). Apply normally.
@@ -21,6 +32,8 @@ Without a working shell, fetch the feeds with web fetch, a few companies at a ti
 - **C**: hard limits (must reside there, E-Verify, security clearance, citizenship, ITAR, specific US time
   zones only). Skip; list notable ones so they can override.
 - **X**: limited to other named countries. Skip.
+Hybrid and on-site roles: kept only if the person allows that mode (`workplaces`) and the job is in one of their
+`commuteCities`. Cities without a country ("Berlin", "Budapest") are mapped to their country (scripts/geo.py).
 Always read the posting itself before tailoring; the script is a pre-filter.
 
 ## Gate, then score

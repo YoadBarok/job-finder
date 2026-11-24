@@ -25,6 +25,9 @@ from __future__ import annotations
 import argparse, csv, datetime as dt, html, json, os, re, sys, time, urllib.error, urllib.request
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from geo import country_of  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent  # skill folder
 UA = "job-finder/1.0 (personal job search; polite polling)"
 
@@ -161,11 +164,35 @@ def split_location(loc: str) -> list[str]:
     return parts or [""]
 
 
-def is_onsite(job) -> bool:
-    if ONSITE.search(job["location"]):
-        return True
-    w = str(job.get("workplace") or "").lower()
-    return w in ("onsite", "on-site", "hybrid") and not job.get("remote_flag")
+def work_mode(job) -> str:
+    """remote | hybrid | onsite | unknown (from the ATS field first, then the location text)."""
+    w = str(job.get("workplace") or "").lower().replace("_", "").replace("-", "")
+    loc = job["location"].lower()
+    if "hybrid" in w or re.search(r"\bhybrid\b", loc):
+        return "hybrid"
+    if w in ("onsite", "inoffice", "office") or re.search(r"\b(?:on-?site|in[- ]office|office[- ]based)\b", loc):
+        return "remote" if job.get("remote_flag") else "onsite"
+    if w == "remote" or job.get("remote_flag") or re.search(r"\b(remote|anywhere|distributed|home[- ]based|work from home)\b", loc):
+        return "remote"
+    return "unknown"
+
+
+def workplace_ok(job, s) -> tuple[bool, str]:
+    """search.json: "workplaces": ["remote", "hybrid", "onsite"], "commuteCities": ["Prague", "Berlin"].
+    Hybrid/on-site roles are kept only if allowed AND located in one of the commute cities."""
+    allowed = [w.lower() for w in s.get("workplaces", ["remote"])]
+    mode = work_mode(job)
+    if mode in ("remote", "unknown"):
+        return True, mode
+    if mode not in allowed:
+        return False, mode
+    cities = [c.lower() for c in s.get("commuteCities", [])]
+    loc = job["location"].lower()
+    return (any(c in loc for c in cities) if cities else False), mode
+
+
+def is_onsite(job) -> bool:  # kept for older callers: True if not remote under remote-only settings
+    return not workplace_ok(job, {"workplaces": ["remote"]})[0]
 
 
 EU = ["austria", "belgium", "bulgaria", "croatia", "cyprus", "czechia", "czech republic", "denmark", "estonia",
@@ -211,7 +238,12 @@ def classify(job, home: list[str], home_utc: float | None = None, authorized: li
         elif GENERIC.match(p): kinds.append("generic")
         elif US_PART.search(p): kinds.append("auth" if us_ok else "us")
         elif CA_PART.search(p): kinds.append("auth" if ca_ok else "ca")
-        else: kinds.append("other")
+        else:
+            c = country_of(p)
+            if c and c in auth: kinds.append("auth")
+            elif c == "united states": kinds.append("us")
+            elif c == "canada": kinds.append("ca")
+            else: kinds.append("other")
     if "home" in kinds or "auth" in kinds:
         return "A", [f"location fits where you can work ({loc})"]
     if "open" in kinds:
@@ -285,11 +317,13 @@ def main():
     home = s.get("homeCountry", [])
     keep_groups = set(s.get("keepGroups", ["A", "B"]))
 
-    out, errors, counts = [], [], {"jobs": 0, "fresh": 0}
+    out, errors, not_polled, counts = [], [], [], {"jobs": 0, "fresh": 0}
     for c in companies:
         if c.get("disabled"):
             continue
         name, ats, slug = c["name"], c["ats"], c["slug"]
+        if c.get("polled") is False or (ats not in ENDPOINTS and ats in ("workable", "smartrecruiters", "recruitee", "personio", "teamtailor")):
+            not_polled.append(f"{name} ({ats})"); continue
         if ats not in ENDPOINTS or not re.fullmatch(r"[A-Za-z0-9._-]{1,80}", str(slug)):
             errors.append(f"{name} ({ats}/{slug}): invalid board type or slug - skipped"); continue
         try:
@@ -313,7 +347,8 @@ def main():
                 continue
             if require and not any(p.search(j["title"]) for p in require):
                 continue
-            if is_onsite(j):
+            ok_wp, j["work_mode"] = workplace_ok(j, s)
+            if not ok_wp:
                 continue
             counts["fresh"] += 1
             key = f"{ats}:{slug}:{j['id']}"
@@ -342,6 +377,8 @@ def main():
         print(f"{j['prescore']:>3}  {j['group']}  {j['posted']}  {j['company'][:18]:<18} {j['title'][:60]:<60} {j['location'][:35]}")
     if errors:
         print("\nBoards that failed (fix slug or remove):", *errors, sep="\n  ")
+    if not_polled:
+        print(f"\nNot polled automatically ({len(not_polled)}; check their career pages with web fetch): " + ", ".join(not_polled[:15]))
     print(f"\nSaved: {data / 'candidates' / (stamp + '.json')}")
 
 
