@@ -6,12 +6,31 @@ Companies' career pages use these public JSON feeds; poll_boards.py reads them f
 - Greenhouse: `https://boards-api.greenhouse.io/v1/boards/<slug>/jobs?content=true`
 - Ashby: `https://api.ashbyhq.com/posting-api/job-board/<slug>?includeCompensation=true`
 - Lever: `https://api.lever.co/v0/postings/<slug>?mode=json`
+- Workable: `https://apply.workable.com/api/v1/widget/accounts/<slug>` (no description: open the posting)
+- Recruitee: `https://<slug>.recruitee.com/api/offers/`
+- Personio: `https://<slug>.jobs.personio.de/xml?language=en` (XML; posting = `https://<slug>.jobs.personio.de/job/<id>`)
+- SmartRecruiters and Teamtailor are not polled (robots rules / no public feed): read those pages with web fetch.
 The slug is the company part of the career-page URL (job-boards.greenhouse.io/**alpaca**, jobs.ashbyhq.com/**n8n**,
 jobs.lever.co/**acme**). A 404 means a wrong slug: report it, don't guess repeatedly. Each candidate in
 `candidates/<date>.json` carries the full description; score and tailor from it. Many career pages need
 JavaScript and come back empty from a plain fetch; use the JSON feed or ask the person to paste the text.
 
 Without a working shell, fetch the feeds with web fetch, a few companies at a time, and apply the same filters.
+
+## Free job feeds (aggregators)
+poll_boards.py also reads these once per run (search.json `"feeds"`: default all; `[]` turns them off;
+`"feedQueries"`: search words, default from the person's title patterns). Each has its own terms, which the
+script follows (minimum gap between fetches in `feeds_state.json`; credit kept on every job):
+- **Arbeitnow** `https://www.arbeitnow.com/api/job-board-api`: mostly Germany/EU; link back to Arbeitnow.
+- **Jobicy** `https://jobicy.com/api/v2/remote-jobs`: remote only; credit Jobicy with a direct link; a few fetches a day.
+- **Remote OK** `https://remoteok.com/api`: remote only; link back and mention Remote OK as the source.
+- **Himalayas** `https://himalayas.app/jobs/api/search?q=`: remote only; apply through its `applicationLink`
+  (that is the job's `url`), show Himalayas credit with a link, drop expired jobs, never republish the jobs.
+- **Remotive** `https://remotive.com/api/remote-jobs?search=`: remote only; jobs appear with a 24-hour delay;
+  at most a few fetches a day; credit Remotive with a link.
+When you show or save a feed job, say where it came from ("via Jobicy", with `source_url`). These jobs are for
+the person's own search only: don't publish or forward the lists. A feed job's employer page is still the best
+source for the full posting; if it's on a board above, add it with add_boards.py so future polls read it directly.
 
 ## Discovering employers (do this every search round)
 The company list must grow from real postings, not guesses. For each target title (and each commute city, if any),

@@ -43,7 +43,7 @@ words), `stackKeywords` (tools). Set `homeCountry`, `homeUtcOffset`, `authorized
 
 **Companies:** the starter list in `config/companies.json` is mostly tech companies, which also hire designers,
 QA and product people. Ask about their field and region, propose 15–30 more companies known to hire remotely
-in it, check their job board (Greenhouse/Ashby/Lever; see sourcing.md), and save the full list as
+in it, check their job board (Greenhouse/Ashby/Lever/Workable/Recruitee/Personio; see sourcing.md), and save the full list as
 `companies.json` in the data folder.
 
 ## Step 3: the base CV

@@ -44,10 +44,13 @@ Cheapest and safest sources first. Details, eligibility groups and scoring: `ref
    "QA Engineer" Berlin`, `site:jobs.lever.co "Product Designer" remote` (more patterns in `references/sourcing.md`),
    then pass every posting URL you found to `python3 SCRIPTS/add_boards.py --data <DATA> <urls...>`. It adds
    the new companies to their list, so the list grows with each search instead of relying on guesses.
-3. Read the job boards of every company on the list: `python3 SCRIPTS/poll_boards.py --data <DATA>` (free, live,
-   dated postings straight from the employer). If the shell has no internet, fetch the same public endpoints
-   with your web-fetch tool, a few companies at a time (`references/sourcing.md`). Boards it can't poll yet are
-   listed at the end: read those career pages with web fetch.
+3. Read the job boards of every company on the list, plus free job feeds (Arbeitnow, Jobicy, Remote OK,
+   Himalayas, Remotive): `python3 SCRIPTS/poll_boards.py --data <DATA>` (free, live, dated postings). If the shell
+   has no internet, fetch the same public endpoints with your web-fetch tool, a few at a time
+   (`references/sourcing.md`). Boards it can't poll are listed at the end: read those career pages with web fetch.
+   Jobs from a feed carry `source` and `source_url`: always name the feed and give its link when you show the job
+   and in its notes (the feeds ask for that credit). Workable jobs have no description in the feed: open the
+   posting before scoring.
 4. Web search for postings on other career pages and job boards in their field and region.
 5. Paid sources (like Apify) only if criteria.md allows it and the person approves each run and its cost.
 6. LinkedIn: never automate it and never use their account. Ask them to paste the link or the description.
@@ -77,7 +80,7 @@ context) compare cv.json with the base and list any unsupported claim.
 
 ## 3. Notes and apply kit
 
-`notes.md` in the job folder: the job link first, then score and group with the reasons, a table of
+`notes.md` in the job folder: the job link first (and "Found via <feed>: <source_url>" for feed jobs), then score and group with the reasons, a table of
 requirement / met · partly · gap / evidence, what changed compared with the base CV, "Needs your
 confirmation", red flags (location, work permit, time zone, pay, seniority, posting age), and a short cover
 note. Group B also gets a short recruiter note **for them to send**.

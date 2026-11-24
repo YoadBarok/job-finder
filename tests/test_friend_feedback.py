@@ -65,8 +65,8 @@ class Discovery(unittest.TestCase):
         sk = ROOT / "plugins/job-finder/skills/job-finder/scripts/add_boards.py"
         with tempfile.TemporaryDirectory() as d:
             Path(d, "companies.json").write_text(json.dumps([{"name": "Deel", "ats": "ashby", "slug": "deel"}]))
-            urls = ["https://jobs.ashbyhq.com/deel/1", "https://jobs.ashbyhq.com/Deel/2", "https://apply.workable.com/virtuos/j/1"]
+            urls = ["https://jobs.ashbyhq.com/deel/1", "https://jobs.ashbyhq.com/Deel/2", "https://apply.workable.com/virtuos/j/1", "https://jobs.smartrecruiters.com/Acme/123-x"]
             out = json.loads(subprocess.run([sys.executable, str(sk), "--data", d, *urls], check=True, capture_output=True, text=True).stdout)
-            self.assertEqual(out["added"], ["workable/virtuos"])
+            self.assertEqual(out["added"], ["workable/virtuos", "smartrecruiters/Acme"])
             cs = json.loads(Path(d, "companies.json").read_text())
-            self.assertEqual(len(cs), 2); self.assertIs(cs[1]["polled"], False)
+            self.assertEqual(len(cs), 3); self.assertNotIn("polled", cs[1]); self.assertIs(cs[2]["polled"], False)

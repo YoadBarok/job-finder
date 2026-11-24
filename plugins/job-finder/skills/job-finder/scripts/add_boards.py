@@ -13,8 +13,8 @@ Recognises the employer's own job-board systems and adds each new board to DATA/
   Recruitee   <slug>.recruitee.com
   Personio    <slug>.jobs.personio.de / .com
   Teamtailor  <slug>.teamtailor.com
-Only Greenhouse, Ashby and Lever are polled automatically today; the others are stored for the agent to read
-with web fetch (their entries carry "polled": false). Nothing is fetched by this script.
+Greenhouse, Ashby, Lever, Workable, Recruitee and Personio are polled automatically; SmartRecruiters and
+Teamtailor are stored for the agent to read with web fetch ("polled": false). Nothing is fetched by this script.
 """
 import argparse, json, os, re, sys
 from pathlib import Path
@@ -23,7 +23,7 @@ from urllib.parse import urlsplit
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from jf_config import data_dir  # noqa: E402
 
-POLLED = {"greenhouse", "ashby", "lever"}
+POLLED = {"greenhouse", "ashby", "lever", "workable", "recruitee", "personio"}
 SLUG = r"([A-Za-z0-9][A-Za-z0-9._-]{0,79})"
 PATTERNS = [
     ("greenhouse", re.compile(rf"^(?:job-)?boards(?:\.eu)?\.greenhouse\.io$"), re.compile(rf"^/{SLUG}(?:/|$)")),

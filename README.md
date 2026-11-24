@@ -5,7 +5,8 @@ It learns what you want in a short chat, finds fresh jobs you can actually take,
 tailored to each one, and prepares a one-click apply kit. **You** review and apply. It never applies or contacts
 anyone for you.
 
-- Finds jobs on companies' own career pages (free public job boards), plus links you paste
+- Finds jobs on companies' own career pages (free public job boards) and free job feeds (Arbeitnow, Jobicy,
+  Remote OK, Himalayas, Remotive, always credited), plus links you paste
 - Checks each job: recent? not a repost? can you legally take it from where you live? pay above your floor?
 - Scores each match and explains the gaps honestly
 - Builds a one-page CV from **your** approved CV: reordered and reworded, never invented

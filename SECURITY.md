@@ -5,8 +5,9 @@
 - **Finding an existing folder:** during setup it looks in common places (home, Documents, Desktop, iCloud Drive,
   Dropbox, OneDrive, Google Drive, Projects; up to 4 levels deep) for a file named `criteria.md` and reads only
   its **first line**, to recognise a Job Finder folder. Nothing else is opened.
-- **The internet:** public job-board feeds (Greenhouse, Ashby, Lever), company career pages and web search, to
-  read job postings. Nothing is uploaded or submitted anywhere.
+- **The internet:** public job-board feeds (Greenhouse, Ashby, Lever, Workable, Recruitee, Personio), free job
+  feeds (Arbeitnow, Jobicy, Remote OK, Himalayas, Remotive; set `"feeds": []` in search.json to turn them off),
+  company career pages and web search, to read job postings. Nothing is uploaded or submitted anywhere.
 - **A settings file** at `~/.config/job-finder/config.json` that stores the path of your folder.
 
 ## What it never does

@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
-"""Poll companies' public job boards (Greenhouse, Ashby, Lever) for fresh remote roles.
+"""Poll companies' public job boards and free job aggregators for fresh roles.
 
-Free: these are the public JSON endpoints the career pages themselves use. No login, no scraping.
+Boards (per company in companies.json): Greenhouse, Ashby, Lever, Workable, Recruitee, Personio.
+Aggregators (search.json "feeds"; default all): Arbeitnow, Jobicy, RemoteOK, Himalayas, Remotive.
+Free: these are public APIs/feeds the sites publish for exactly this use. No login, no scraping.
+Aggregator rules we follow: polite intervals (feeds_state.json), credit + link back to the source on
+every candidate ("source", "source_url"), Himalayas/RemoteOK apply links used as given, nothing republished.
 
 Usage:
   python3 scripts/poll_boards.py --data ~/job-finder-data            # live
@@ -35,7 +39,11 @@ ENDPOINTS = {
     "greenhouse": "https://boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true",
     "ashby": "https://api.ashbyhq.com/posting-api/job-board/{slug}?includeCompensation=true",
     "lever": "https://api.lever.co/v0/postings/{slug}?mode=json",
+    "workable": "https://apply.workable.com/api/v1/widget/accounts/{slug}",
+    "recruitee": "https://{slug}.recruitee.com/api/offers/",
+    "personio": "https://{slug}.jobs.personio.de/xml?language=en",
 }
+NOT_POLLABLE = ("smartrecruiters", "teamtailor")  # robots.txt / no public feed: checked by hand
 
 # ---------- helpers ----------
 
@@ -61,20 +69,25 @@ def normalize_url(u: str) -> str:
 def parse_date(v) -> dt.datetime | None:
     if v is None:
         return None
-    if isinstance(v, (int, float)):  # Lever: epoch ms
-        return dt.datetime.fromtimestamp(v / 1000, tz=dt.timezone.utc)
+    if isinstance(v, (int, float)) or (isinstance(v, str) and v.isdigit()):  # epoch ms (Lever) or s (feeds)
+        v = float(v)
+        return dt.datetime.fromtimestamp(v / 1000 if v > 1e11 else v, tz=dt.timezone.utc)
+    v = str(v).strip().replace("Z", "+00:00")
+    v = re.sub(r" UTC$", "+00:00", v)  # Recruitee: "2026-11-18 16:23:32 UTC"
     try:
-        return dt.datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+        d = dt.datetime.fromisoformat(v)
     except ValueError:
         return None
+    return d if d.tzinfo else d.replace(tzinfo=dt.timezone.utc)
 
 
-def fetch_json(url: str, retries: int = 2):
-    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
+def fetch_json(url: str, retries: int = 2, raw: bool = False):
+    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json, application/xml"})
     for attempt in range(retries + 1):
         try:
             with urllib.request.urlopen(req, timeout=30) as r:
-                return json.load(r)
+                body = r.read(20_000_000)
+                return body.decode("utf-8", "replace") if raw else json.loads(body)
         except urllib.error.HTTPError as e:
             if e.code in (404, 410):
                 raise LookupError(f"board not found ({e.code}) - check the slug")
@@ -131,7 +144,138 @@ def norm_lever(company, data):
         }
 
 
-NORMALISERS = {"greenhouse": norm_greenhouse, "ashby": norm_ashby, "lever": norm_lever}
+def norm_workable(company, data):
+    """Widget feed has no description: Claude fetches the posting before scoring (text is empty)."""
+    for j in data.get("jobs", []) if isinstance(data, dict) else []:
+        locs = [", ".join(x for x in (l.get("city"), l.get("region"), l.get("country")) if x)
+                for l in j.get("locations") or [] if not l.get("hidden")]
+        if not locs:
+            locs = [", ".join(x for x in (j.get("city"), j.get("state"), j.get("country")) if x)]
+        yield {
+            "company": company, "ats": "workable", "id": str(j.get("shortcode") or j.get("code") or j.get("url")),
+            "title": j.get("title", ""), "location": "; ".join(l for l in locs if l),
+            "posted": j.get("published_on") or j.get("created_at"), "url": j.get("url") or j.get("shortlink", ""),
+            "text": " ".join(x for x in (j.get("department"), j.get("function"), j.get("employment_type")) if x),
+            "salary": None, "remote_flag": bool(j.get("telecommuting")), "workplace": "remote" if j.get("telecommuting") else None,
+            "needs_description": True,
+        }
+
+
+def norm_recruitee(company, data):
+    for j in data.get("offers", []) if isinstance(data, dict) else []:
+        if j.get("status") not in (None, "published"):
+            continue
+        sal = j.get("salary") or {}
+        salary = (f"{sal.get('currency','')} {sal.get('min')}-{sal.get('max')} {sal.get('period','')}".strip()
+                  if sal.get("min") or sal.get("max") else None)
+        wp = "hybrid" if j.get("hybrid") else "remote" if j.get("remote") else "onsite" if j.get("on_site") else None
+        yield {
+            "company": company, "ats": "recruitee", "id": str(j.get("id")),
+            "title": j.get("title", ""), "location": j.get("location") or ", ".join(x for x in (j.get("city"), j.get("country")) if x),
+            "posted": j.get("published_at") or j.get("created_at"), "url": j.get("careers_url", ""),
+            "text": strip_html((j.get("description") or "") + " " + (j.get("requirements") or "")),
+            "salary": salary, "remote_flag": bool(j.get("remote")), "workplace": wp,
+        }
+
+
+def norm_personio(company, data, slug=""):
+    """Personio publishes XML; the posting URL is built from the board slug and position id."""
+    import xml.etree.ElementTree as ET
+    try:
+        root = ET.fromstring(data) if isinstance(data, str) else None
+    except ET.ParseError:
+        root = None
+    if root is None:
+        return
+    for p in root.iter("position"):
+        g = lambda t: (p.findtext(t) or "").strip()
+        offices = [g("office")] + [(o.text or "").strip() for o in p.iter("additionalOffice")]
+        desc = " ".join(strip_html((d.findtext("name") or "") + " " + (d.findtext("value") or ""))
+                        for d in p.iter("jobDescription"))
+        pid = g("id")
+        yield {
+            "company": company, "ats": "personio", "id": pid, "title": g("name"),
+            "location": "; ".join(o for o in offices if o), "posted": g("createdAt"),
+            "url": f"https://{slug}.jobs.personio.de/job/{pid}" if slug and pid.isdigit() else "",
+            "text": " ".join(x for x in (g("department"), g("seniority"), g("schedule"), desc) if x),
+            "salary": None, "remote_flag": None, "workplace": None,
+        }
+
+
+NORMALISERS = {"greenhouse": norm_greenhouse, "ashby": norm_ashby, "lever": norm_lever,
+               "workable": norm_workable, "recruitee": norm_recruitee, "personio": norm_personio}
+RAW_TEXT = {"personio"}  # XML, not JSON
+
+# ---------- free aggregators (public APIs; each asks for credit + a link back) ----------
+
+FEEDS = {
+    #  name: (url, min hours between fetches, credit shown to the person)
+    "arbeitnow": ("https://www.arbeitnow.com/api/job-board-api", 3, "Arbeitnow (arbeitnow.com)"),
+    "jobicy": ("https://jobicy.com/api/v2/remote-jobs?count=100", 6, "Jobicy (jobicy.com)"),
+    "remoteok": ("https://remoteok.com/api", 3, "Remote OK (remoteok.com)"),
+    "himalayas": ("https://himalayas.app/jobs/api/search?q={q}&sort=recent", 24, "Himalayas (himalayas.app)"),
+    "remotive": ("https://remotive.com/api/remote-jobs?search={q}&limit=100", 6, "Remotive (remotive.com)"),
+}
+
+
+def _feed_job(feed, id_, company, title, location, posted, url, text, salary=None, workplace="remote",
+              source_url=None):
+    return {"company": company or "?", "ats": feed, "id": str(id_), "title": title or "", "location": location or "",
+            "posted": posted, "url": url or "", "text": text or "", "salary": salary,
+            "remote_flag": workplace == "remote", "workplace": workplace,
+            "source": FEEDS[feed][2], "source_url": source_url or url or ""}
+
+
+def norm_feed(feed, data, now=None):
+    now = now or dt.datetime.now(dt.timezone.utc)
+    if feed == "arbeitnow":
+        for j in (data or {}).get("data", []):
+            yield _feed_job(feed, j.get("slug"), j.get("company_name"), j.get("title"), j.get("location"),
+                            j.get("created_at"), j.get("url"), strip_html(j.get("description")) + " " + " ".join(j.get("tags") or []),
+                            workplace="remote" if j.get("remote") else "onsite")
+    elif feed == "jobicy":
+        for j in (data or {}).get("jobs", []):
+            sal = (f"{j.get('salaryCurrency','')} {j.get('annualSalaryMin')}-{j.get('annualSalaryMax')} year".strip()
+                   if j.get("annualSalaryMin") else None)
+            yield _feed_job(feed, j.get("id"), j.get("companyName"), j.get("jobTitle"), j.get("jobGeo"), j.get("pubDate"),
+                            j.get("url"), strip_html(j.get("jobDescription") or j.get("jobExcerpt")), sal)
+    elif feed == "remoteok":
+        for j in data if isinstance(data, list) else []:
+            if not isinstance(j, dict) or "legal" in j or not j.get("position"):
+                continue
+            sal = f"USD {j['salary_min']}-{j['salary_max']} year" if j.get("salary_min") else None
+            yield _feed_job(feed, j.get("id"), j.get("company"), j.get("position"), j.get("location") or "Remote",
+                            j.get("epoch") or j.get("date"), j.get("apply_url") or j.get("url"),
+                            strip_html(j.get("description")) + " " + " ".join(j.get("tags") or []), sal,
+                            source_url=j.get("url"))
+    elif feed == "himalayas":
+        for j in (data or {}).get("jobs", []):
+            exp = parse_date(j.get("expiryDate"))
+            if exp and exp < now:
+                continue  # Himalayas asks API users to drop expired jobs
+            locs = j.get("locationRestrictions") or []
+            loc = ", ".join(l if isinstance(l, str) else (l or {}).get("name", "") for l in locs) or "Anywhere"
+            sal = (f"{j.get('currency','')} {j.get('minSalary')}-{j.get('maxSalary')} {j.get('salaryPeriod') or 'annual'}".strip()
+                   if j.get("minSalary") else None)
+            yield _feed_job(feed, j.get("guid") or j.get("applicationLink"), j.get("companyName"), j.get("title"), loc,
+                            j.get("pubDate"), j.get("applicationLink"),  # terms: Apply must use applicationLink
+                            strip_html(j.get("description") or j.get("excerpt")), sal)
+    elif feed == "remotive":
+        for j in (data or {}).get("jobs", []):
+            yield _feed_job(feed, j.get("id"), j.get("company_name"), j.get("title"),
+                            j.get("candidate_required_location") or "Anywhere", j.get("publication_date"), j.get("url"),
+                            strip_html(j.get("description")) + " " + " ".join(j.get("tags") or []), j.get("salary") or None)
+
+
+def feed_queries(s) -> list[str]:
+    """Search words for the feeds that take a query: the person's own role words, at most 3."""
+    qs = s.get("feedQueries") or []
+    if not qs:
+        for p in s.get("titleRequireAny", []) + s.get("titleInclude", []):
+            w = re.sub(r"\\[a-z]|[^A-Za-z0-9 +#.-]", " ", p).strip()
+            if len(w) > 2 and w.lower() not in ("senior", "staff", "principal", "lead", "sr") and w not in qs:
+                qs.append(w)
+    return qs[:3]
 
 # ---------- eligibility & scoring ----------
 
@@ -296,6 +440,7 @@ def main():
     ap.add_argument("--no-save", action="store_true", help="don't update seen.json")
     ap.add_argument("--all", action="store_true", help="include jobs already seen")
     ap.add_argument("--delay", type=float, default=1.0, help="seconds between companies (be polite)")
+    ap.add_argument("--no-feeds", action="store_true", help="skip the free aggregators this run")
     a = ap.parse_args()
 
     from jf_config import data_dir
@@ -317,51 +462,96 @@ def main():
     home = s.get("homeCountry", [])
     keep_groups = set(s.get("keepGroups", ["A", "B"]))
 
-    out, errors, not_polled, counts = [], [], [], {"jobs": 0, "fresh": 0}
+    out, errors, not_polled, feed_notes, counts = [], [], [], [], {"jobs": 0, "fresh": 0}
+    dedupe = set() if a.all else {normalize_url(u) for u in tracked if u}
+
+    def consider(j, key):
+        """One filter pipeline for boards and feeds: age, title, workplace, seen, eligibility, score."""
+        counts["jobs"] += 1
+        j["url"] = normalize_url(j["url"])
+        if not j["url"].startswith("https://"):
+            return
+        posted = parse_date(j["posted"])
+        j["age_days"] = (now - posted).days if posted else None
+        j["posted"] = posted.date().isoformat() if posted else None
+        if j["age_days"] is None or j["age_days"] > max_age:
+            return
+        if any(p.search(j["title"]) for p in exclude):
+            return
+        if require and not any(p.search(j["title"]) for p in require):
+            return
+        ok_wp, j["work_mode"] = workplace_ok(j, s)
+        if not ok_wp:
+            return
+        counts["fresh"] += 1
+        same = (j["company"].lower().strip(), re.sub(r"\W+", " ", j["title"].lower()).strip())
+        if j["url"] in dedupe or same in dedupe:  # same job from a board and a feed, or two feeds
+            return
+        if not a.all and key in seen:
+            return
+        j["group"], j["eligibility"] = classify(j, home, s.get("homeUtcOffset"), s.get("authorized"),
+                                             s.get("contractorOK", True))
+        if j["group"] not in keep_groups:
+            return
+        j["prescore"], j["why"] = score(j, s)
+        j["key"] = key
+        dedupe.update({j["url"], same})
+        # keep the full description: it is what Claude scores and tailors from (career pages often need JS)
+        out.append(j)
+
     for c in companies:
         if c.get("disabled"):
             continue
         name, ats, slug = c["name"], c["ats"], c["slug"]
-        if c.get("polled") is False or (ats not in ENDPOINTS and ats in ("workable", "smartrecruiters", "recruitee", "personio", "teamtailor")):
+        if ats in NOT_POLLABLE or (c.get("polled") is False and ats not in ENDPOINTS):
             not_polled.append(f"{name} ({ats})"); continue
         if ats not in ENDPOINTS or not re.fullmatch(r"[A-Za-z0-9._-]{1,80}", str(slug)):
             errors.append(f"{name} ({ats}/{slug}): invalid board type or slug - skipped"); continue
         try:
             if a.fixtures:
-                fp = Path(a.fixtures) / f"{ats}-{slug}.json"
-                raw = json.loads(fp.read_text())
+                fp = Path(a.fixtures) / f"{ats}-{slug}.{'xml' if ats in RAW_TEXT else 'json'}"
+                raw = fp.read_text() if ats in RAW_TEXT else json.loads(fp.read_text())
             else:
-                raw = fetch_json(ENDPOINTS[ats].format(slug=slug))
+                raw = fetch_json(ENDPOINTS[ats].format(slug=slug), raw=ats in RAW_TEXT)
                 time.sleep(a.delay)
         except Exception as e:  # report, never crash the whole run
             errors.append(f"{name} ({ats}/{slug}): {e}"); continue
-        for j in NORMALISERS[ats](name, raw):
-            counts["jobs"] += 1
-            j["url"] = normalize_url(j["url"])
-            posted = parse_date(j["posted"])
-            j["age_days"] = (now - posted).days if posted else None
-            j["posted"] = posted.date().isoformat() if posted else None
-            if j["age_days"] is None or j["age_days"] > max_age:
-                continue
-            if any(p.search(j["title"]) for p in exclude):
-                continue
-            if require and not any(p.search(j["title"]) for p in require):
-                continue
-            ok_wp, j["work_mode"] = workplace_ok(j, s)
-            if not ok_wp:
-                continue
-            counts["fresh"] += 1
-            key = f"{ats}:{slug}:{j['id']}"
-            if not a.all and (key in seen or j["url"] in tracked):
-                continue
-            j["group"], j["eligibility"] = classify(j, home, s.get("homeUtcOffset"), s.get("authorized"),
-                                                 s.get("contractorOK", True))
-            if j["group"] not in keep_groups:
-                continue
-            j["prescore"], j["why"] = score(j, s)
-            j["key"] = key
-            # keep the full description: it is what Claude scores and tailors from (career pages often need JS)
-            out.append(j)
+        jobs = NORMALISERS[ats](name, raw, slug) if ats == "personio" else NORMALISERS[ats](name, raw)
+        for j in jobs:
+            consider(j, f"{ats}:{slug}:{j['id']}")
+
+    # ---- free aggregators: once per run, polite intervals, credit kept on every job ----
+    feeds = [f for f in (s.get("feeds") if "feeds" in s else list(FEEDS)) if f in FEEDS] if not a.no_feeds else []
+    state_p = data / "feeds_state.json"
+    state = load_json(state_p, {})
+    for f in feeds:
+        url, min_h, credit = FEEDS[f]
+        last = parse_date(state.get(f))
+        if not a.fixtures and last and (now - last).total_seconds() < min_h * 3600:
+            feed_notes.append(f"{credit}: skipped (fetched under {min_h}h ago - be polite)"); continue
+        try:
+            if a.fixtures:
+                fp = Path(a.fixtures) / f"feed-{f}.json"
+                if not fp.exists():
+                    continue
+                payloads = [json.loads(fp.read_text())]
+            else:
+                qs = feed_queries(s) if "{q}" in url else [""]
+                from urllib.parse import quote
+                payloads = []
+                for q in qs or [""]:
+                    payloads.append(fetch_json(url.format(q=quote(q))))
+                    time.sleep(a.delay)
+                state[f] = now.isoformat()
+        except Exception as e:
+            errors.append(f"{credit}: {e}"); continue
+        n_before = len(out)
+        for raw in payloads:
+            for j in norm_feed(f, raw, now):
+                consider(j, f"{f}:{j['id']}")
+        feed_notes.append(f"{credit}: {len(out) - n_before} new")
+    if feeds and not a.fixtures:
+        state_p.write_text(json.dumps(state, indent=1))
 
     out.sort(key=lambda j: (-j["prescore"], j["age_days"] or 99))
     (data / "candidates").mkdir(parents=True, exist_ok=True)
@@ -370,11 +560,14 @@ def main():
     if not a.no_save and not a.fixtures:
         (data / "seen.json").write_text(json.dumps(sorted(seen | {j["key"] for j in out}), indent=0))
 
-    print(f"{len(companies)} companies, {counts['jobs']} jobs, {counts['fresh']} fresh & title-matched, {len(out)} new candidates")
+    print(f"{len(companies)} companies + {len(feeds)} job feeds, {counts['jobs']} jobs, {counts['fresh']} fresh & title-matched, {len(out)} new candidates")
     shown = [j for j in out if j["prescore"] >= s.get("minPrescore", 0)]
     print(f"showing {len(shown)} with prescore >= {s.get('minPrescore', 0)} (all {len(out)} are in the saved file)")
     for j in shown[:40]:
-        print(f"{j['prescore']:>3}  {j['group']}  {j['posted']}  {j['company'][:18]:<18} {j['title'][:60]:<60} {j['location'][:35]}")
+        via = f"  [via {j['source'].split(' (')[0]}]" if j.get("source") else ""
+        print(f"{j['prescore']:>3}  {j['group']}  {j['posted']}  {j['company'][:18]:<18} {j['title'][:60]:<60} {j['location'][:35]}{via}")
+    if feed_notes:
+        print("\nJob feeds (credit them, with a link, when you show these jobs): " + "; ".join(feed_notes))
     if errors:
         print("\nBoards that failed (fix slug or remove):", *errors, sep="\n  ")
     if not_polled:
