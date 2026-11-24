@@ -55,9 +55,9 @@ Cheapest and safest sources first. Details, eligibility groups and scoring: `ref
 5. Paid sources (like Apify) only if criteria.md allows it and the person approves each run and its cost.
 6. LinkedIn: never automate it and never use their account. Ask them to paste the link or the description.
 
-Gate each job before scoring: posted in the last ~14 days, not a repost, the person can legally take it
+Gate each job before scoring: posted within `maxAgeDays` (default 14), not a repost, the person can legally take it
 (group A, or B with a contractor/EOR route if criteria allows), pay not below their floor (keep and flag
-if no pay is shown), and title, seniority and must-haves per criteria.md. Then score 0–100 with reasons.
+if no pay is shown), a language they listed (`language_gap` flags others), and title, seniority and must-haves per criteria.md. Then score 0–100 with reasons.
 Show a short ranked list: score, company, role, where, pay, age, one-line reason, and offer to tailor.
 
 ## 2. Tailor the CV (hard rules)

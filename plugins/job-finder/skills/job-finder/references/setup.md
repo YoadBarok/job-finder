@@ -21,11 +21,14 @@ show file names. Never write "TBD" and move on: the readiness check treats it as
 2. **Who and where:** name, city/country, time zone (UTC offset), citizenships and residence or work permits.
    From that, write `authorized` in search.json: the countries/regions where they can be employed directly
    (EU citizens → "EU"; US citizens or green-card holders → "United States", and so on). Ask whether they'd
-   take contractor or employer-of-record roles in other countries (`contractorOK`).
+   take contractor or employer-of-record roles in other countries (`contractorOK`). Ask which languages they can
+   work in (→ `languages`; jobs that require another one are marked down and flagged, not hidden).
 3. **What they want:** profession and target titles (e.g. "Senior Product Designer", "QA Automation Engineer",
    "Product Owner"), seniority, titles to avoid, **remote only, or also hybrid / on-site, and in which cities**
    (→ `workplaces` and `commuteCities` in search.json; hybrid/on-site roles are kept only in those cities), must-haves,
    deal-breakers, tools they love and ones they don't know, industries or companies to prefer or avoid.
+   Put the role words in `titleRequireAny` (they also earn the title score). For rare or very senior roles
+   (creative director, head of X, principal) few jobs appear each week: suggest `maxAgeDays` 30–45 instead of 14.
 4. **Pay floor** with currency and period. Say they can skip it.
 5. **How many jobs** per day or week, and a minimum score (default 70).
 6. **CV preferences:** headline = target role title? How to describe them, and how never to (e.g. "never call

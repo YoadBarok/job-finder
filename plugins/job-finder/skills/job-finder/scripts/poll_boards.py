@@ -408,7 +408,7 @@ def score(job, s) -> tuple[int, list[str]]:
     t, text = job["title"].lower(), job["text"].lower()
     pts, why = 0, []
     SENIORITY = re.compile(r"\b(senior|sr\.?|staff|principal|lead)\b", re.I)
-    inc = [p for p in s.get("titleInclude", []) if re.search(p, t)]
+    inc = [p for p in s.get("titleInclude", []) + s.get("titleRequireAny", []) if re.search(p, t, re.I)]
     role_hits = [p for p in inc if p.lower() not in ("senior", "staff", "principal", "lead")]
     if role_hits:
         pts += 20; why.append("role title match")
@@ -424,7 +424,37 @@ def score(job, s) -> tuple[int, list[str]]:
         pts += 5; why.append(f"pay: {job['salary']}")
     if job["age_days"] is not None and job["age_days"] <= 7:
         pts += 5; why.append("posted this week")
-    return min(pts, 100), why
+    gap = language_gap(job["text"], s.get("languages"))
+    if gap:
+        job["language_gap"] = gap
+        pts -= 25; why.append("requires " + ", ".join(gap) + " (not in your languages)")
+    return max(0, min(pts, 100)), why
+
+
+LANGS = {"german": r"german|deutsch", "french": r"french|fran[cç]ais", "dutch": r"dutch|nederlands", "spanish": r"spanish|espa[nñ]ol",
+         "italian": r"italian|italiano", "portuguese": r"portuguese|portugu[eê]s", "polish": r"polish|polski",
+         "czech": r"czech|[cč]e[sš]tina", "swedish": r"swedish|svenska", "danish": r"danish|dansk", "norwegian": r"norwegian|norsk",
+         "finnish": r"finnish|suomi", "hungarian": r"hungarian|magyar", "romanian": r"romanian", "greek": r"greek",
+         "japanese": r"japanese", "mandarin": r"mandarin|chinese", "korean": r"korean", "arabic": r"arabic",
+         "hebrew": r"hebrew", "russian": r"russian", "ukrainian": r"ukrainian", "turkish": r"turkish", "english": r"english"}
+_NEED = r"(?:fluent|fluency|native|mother tongue|business[- ]level|professional[- ]level|proficien\w*|excellent|strong|perfect|written and spoken|spoken and written|\bc1\b|\bc2\b|required|requirement|must|essential|mandatory|flie(?:ß|ss)end|verhandlungssicher)"
+_SOFT = re.compile(r"\b(?:plus|nice[- ]to[- ]have|bonus|advantage|advantageous|preferred|desirable|beneficial|helpful|ideally)\b", re.I)
+
+
+def language_gap(text: str, languages) -> list[str]:
+    """Languages a posting REQUIRES that the person didn't list (search.json "languages"). Only when the
+    sentence says fluent/native/C1/required etc. and not 'a plus'/'nice to have'. Unset -> no check."""
+    if not languages:
+        return []
+    have = {l.lower().strip() for l in languages}
+    gaps = []
+    for sent in re.split(r"(?<=[.!?;•\n])\s+|\s[-–•]\s", text or ""):
+        if _SOFT.search(sent) or not re.search(_NEED, sent, re.I):
+            continue
+        for lang, pat in LANGS.items():
+            if lang not in have and lang not in gaps and re.search(rf"\b(?:{pat})\b", sent, re.I):
+                gaps.append(lang.title())
+    return gaps
 
 # ---------- main ----------
 
