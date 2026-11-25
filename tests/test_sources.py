@@ -155,3 +155,12 @@ class EndToEnd(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TrackerSources(unittest.TestCase):
+    def test_new_sources_accepted(self):
+        import track
+        for ok in ["feed (jobicy)", "feed (remotive)", "poll_boards (workable)", "poll_boards (personio)", "apify (a/b-c)"]:
+            self.assertTrue(track.SOURCE.match(ok), ok)
+        for bad in ["feed (evil)", "poll_boards (x)", "apify (a b)"]:
+            self.assertFalse(track.SOURCE.match(bad), bad)

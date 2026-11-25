@@ -8,7 +8,7 @@
 
 Columns: company,role,link,score,date_found,source,cost_usd,status,updated,note
 Status:  found | cv-ready | applied | interviewing | offer | rejected | skipped | withdrawn
-Source:  pasted | poll_boards (greenhouse|ashby|lever) | web search | apify (<actor>) | linkedin (pasted) | referral
+Source:  pasted | poll_boards (<board>) | feed (<feed>) | web search | apify (<actor>) | linkedin (pasted) | referral
 Older trackers (free-text status, fewer columns) are migrated in place on first write.
 """
 import argparse, csv, datetime as dt, os, re, sys
@@ -19,7 +19,9 @@ from jf_config import data_dir  # noqa: E402
 
 COLS = ["company", "role", "link", "score", "date_found", "source", "cost_usd", "status", "updated", "note"]
 STATUSES = ["found", "cv-ready", "applied", "interviewing", "offer", "rejected", "skipped", "withdrawn"]
-SOURCE = re.compile(r"^(pasted|web search|referral|linkedin \(pasted\)|poll_boards \((greenhouse|ashby|lever)\)|apify \([\w./-]+\))$")
+SOURCE = re.compile(r"^(pasted|web search|referral|linkedin \(pasted\)|"
+                    r"poll_boards \((greenhouse|ashby|lever|workable|recruitee|personio)\)|"
+                    r"feed \((arbeitnow|jobicy|remoteok|himalayas|remotive)\)|apify \([\w./-]+\))$")
 
 
 def today():
@@ -81,7 +83,7 @@ def main():
     if a.cmd == "add":
         if a.source and not SOURCE.match(a.source):
             sys.exit("--source must be one of: pasted | web search | referral | linkedin (pasted) | "
-                     "poll_boards (greenhouse|ashby|lever) | apify (<actor>)")
+                     "poll_boards (greenhouse|ashby|lever|workable|recruitee|personio) | feed (<arbeitnow|jobicy|remoteok|himalayas|remotive>) | apify (<actor>)")
         if match:
             sys.exit(f"already tracked: {a.link} (use `set` to update)")
         if not (a.company and a.role and a.source and a.status):

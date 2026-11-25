@@ -91,7 +91,7 @@ It creates **Apply.webloc** (Mac: double-click opens the application form), **Ap
 attachments and per-company application limits in `--extra`.
 
 Track it with `python3 SCRIPTS/track.py add --data <DATA> --company ... --role ... --link <URL> --score N
---source "<source>" --status cv-ready`. When they apply: `track.py set --link <URL> --status applied
+--source "<source>" --status cv-ready` (a feed job: `--source "feed (jobicy)"`). When they apply: `track.py set --link <URL> --status applied
 --note "follow up <date + 14 days>"`. Never edit tracker.csv by hand.
 
 If you can't run scripts (no code execution), do the same steps by hand: write the CV with your document
