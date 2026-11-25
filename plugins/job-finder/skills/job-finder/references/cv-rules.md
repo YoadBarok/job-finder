@@ -8,7 +8,9 @@
 - **List every new claim** (not in base CV or Confirmed facts) under "Needs your confirmation" in notes.md.
 - **Keep the base layout and length** (one page if the base is one page). Fit by cutting words, not by
   shrinking text. Standard headings, single column, ATS-readable.
-- **Headline:** the target role's title if criteria.md says so. Job titles and dates in the history stay exactly as in the base.
+- **Headline:** the target role's title only when it honestly describes the person: drop company levels ("II",
+  "L5"), team names ("Agentic Apps") and levels they haven't held ("Staff"). Otherwise use their real title,
+  optionally with a true focus ("Senior Product Designer – Brand"). A headline the page can't back reads as keyword-stuffing. Job titles and dates in the history stay exactly as in the base.
 - **Identity rules** in criteria.md (how to describe them, how never to) apply to the profile text too.
 - **No hyperlinks** anywhere; contact details are plain text. File name `<First> <Last> CV.pdf`.
 - **Confidentiality:** nothing from `forbidden_terms.txt`; no employer-internal names, ticket IDs or codenames.
