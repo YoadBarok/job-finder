@@ -32,6 +32,15 @@ When you show or save a feed job, say where it came from ("via Jobicy", with `so
 the person's own search only: don't publish or forward the lists. A feed job's employer page is still the best
 source for the full posting; if it's on a board above, add it with add_boards.py so future polls read it directly.
 
+## Growing the list on every run
+The list of company boards is what makes the search broad, so grow it every run:
+1. `poll_boards.py --discover` probes Ashby/Greenhouse/Lever for companies seen in the free feeds (at most 30 a run,
+   public board endpoints only) and adds boards that currently list a matching role.
+2. Run 3-5 of the discovery web searches below with the person's role words, and add what you find with add_boards.py.
+3. Quiet boards (no matching posting in `--quiet-days`, default 60) are listed at the end. Offer to set
+   `"disabled": true` on them; never delete entries.
+Companies the person won't work for go in search.json `"excludeCompanies"` (exact names); they're dropped everywhere.
+
 ## Discovering employers (do this every search round)
 The company list must grow from real postings, not guesses. For each target title (and each commute city, if any),
 run web searches on the employers' own job-board sites:

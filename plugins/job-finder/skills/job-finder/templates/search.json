@@ -24,6 +24,7 @@
   ],
   "titleRequireAny": [],
   "titleInclude": [],
+  "excludeCompanies": [],
   "titleExclude": [
     "intern",
     "internship",

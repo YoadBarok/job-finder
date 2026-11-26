@@ -45,7 +45,9 @@ Cheapest and safest sources first. Details, eligibility groups and scoring: `ref
    then pass every posting URL you found to `python3 SCRIPTS/add_boards.py --data <DATA> <urls...>`. It adds
    the new companies to their list, so the list grows with each search instead of relying on guesses.
 3. Read the job boards of every company on the list, plus free job feeds (Arbeitnow, Jobicy, Remote OK,
-   Himalayas, Remotive): `python3 SCRIPTS/poll_boards.py --data <DATA>` (free, live, dated postings). If the shell
+   Himalayas, Remotive): `python3 SCRIPTS/poll_boards.py --data <DATA> --discover` (free, live, dated postings). `--discover` grows
+   the list on every run: it checks the job boards of companies that showed up in the feeds and adds the ones with
+   matching roles to companies.json. It also reports quiet boards (nothing matching in 60 days); offer to disable them. If the shell
    has no internet, fetch the same public endpoints with your web-fetch tool, a few at a time
    (`references/sourcing.md`). Boards it can't poll are listed at the end: read those career pages with web fetch.
    Jobs from a feed carry `source` and `source_url`: always name the feed and give its link when you show the job

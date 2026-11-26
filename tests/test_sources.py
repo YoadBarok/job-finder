@@ -164,3 +164,34 @@ class TrackerSources(unittest.TestCase):
             self.assertTrue(track.SOURCE.match(ok), ok)
         for bad in ["feed (evil)", "poll_boards (x)", "apify (a b)"]:
             self.assertFalse(track.SOURCE.match(bad), bad)
+
+
+class Discovery(unittest.TestCase):
+    def test_slug_candidates(self):
+        from poll_boards import slug_candidates
+        self.assertEqual(slug_candidates("Acme Labs, Inc."), ["acmelabsinc", "acme-labs-inc", "acme"])
+        self.assertIn("trigger", slug_candidates("Trigger"))
+
+    def test_discover_adds_only_boards_with_matching_jobs(self):
+        from poll_boards import discover_boards
+        boards = {"https://api.ashbyhq.com/posting-api/job-board/acme?includeCompensation=true":
+                  {"jobs": [{"id": "1", "title": "Senior Software Engineer", "jobUrl": "https://jobs.ashbyhq.com/acme/1",
+                             "publishedAt": "2026-11-20T00:00:00Z", "location": "Remote"}]},
+                  "https://boards-api.greenhouse.io/v1/boards/salesonly/jobs?content=true":
+                  {"jobs": [{"id": 2, "title": "Account Executive", "absolute_url": "https://x/2",
+                             "updated_at": "2026-11-20T00:00:00Z", "location": {"name": "Remote"}}]}}
+
+        def fake(url):
+            if url in boards:
+                return boards[url]
+            raise OSError("404")
+        known = {"ashby:already"}
+        got = discover_boards(["Acme", "SalesOnly", "Already", "Nope"], known, lambda t: "engineer" in t.lower(),
+                              fetch=fake, delay=0)
+        self.assertEqual([(g["ats"], g["slug"]) for g in got], [("ashby", "acme")])
+        self.assertIn("greenhouse:salesonly", known)  # remembered, not added (no matching jobs)
+
+    def test_excluded_company_dropped(self):
+        out, _ = EndToEnd().run_poll({"homeCountry": ["Czechia"], "authorized": ["EU"], "feeds": ["jobicy"],
+                                      "excludeCompanies": ["Gamma"]}, [])
+        self.assertEqual(out, [])

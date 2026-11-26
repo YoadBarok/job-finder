@@ -462,6 +462,57 @@ def load_json(p: Path, default):
     return json.loads(p.read_text()) if p.exists() else default
 
 
+_SUFFIX = re.compile(r"\b(inc|llc|ltd|limited|gmbh|ag|sa|s\.a\.|bv|b\.v\.|plc|co|corp|corporation|technologies|technology|labs|hq|io|ai|app)\b\.?", re.I)
+
+
+def slug_candidates(company: str) -> list[str]:
+    """Likely board slugs for a company name: 'Acme Labs, Inc.' -> ['acmelabs', 'acme-labs', 'acme']."""
+    base = re.sub(r"[^a-z0-9 ]+", " ", company.lower()).split()
+    core = re.sub(r"[^a-z0-9 ]+", " ", _SUFFIX.sub(" ", company.lower())).split()
+    out = []
+    for words in (base, core):
+        for v in ("".join(words), "-".join(words)):
+            if v and len(v) >= 2 and v not in out:
+                out.append(v)
+    return out[:4]
+
+
+def discover_boards(names, known, title_ok, fetch=None, limit=30, delay=0.5):
+    """Probe Ashby/Greenhouse/Lever for companies seen in the job feeds. Returns new board entries whose board
+    currently lists at least one title-matching job. Only public board endpoints are touched."""
+    fetch = fetch or fetch_json
+    found, probed = [], 0
+    for name in names:
+        if probed >= limit:
+            break
+        probed += 1
+        for slug in slug_candidates(name):
+            hit = None
+            for ats in ("ashby", "greenhouse", "lever"):
+                if f"{ats}:{slug}" in known:
+                    hit = "known"; break
+                try:
+                    raw = fetch(ENDPOINTS[ats].format(slug=slug))
+                except Exception:
+                    continue
+                titles = [j["title"] for j in NORMALISERS[ats](name, raw)]
+                if titles:
+                    hit = (ats, sum(1 for t in titles if title_ok(t)))
+                    break
+                if delay:
+                    time.sleep(delay)
+            if hit == "known":
+                break
+            if hit:
+                ats, n = hit
+                if n:
+                    found.append({"name": name, "ats": ats, "slug": slug, "added": dt.date.today().isoformat(),
+                                  "via": "discover"})
+                known.add(f"{ats}:{slug}")
+                break
+    return found
+
+
 def main():
     os.umask(0o077)  # everything written into the private data folder is owner-only
     ap = argparse.ArgumentParser()
@@ -471,6 +522,11 @@ def main():
     ap.add_argument("--all", action="store_true", help="include jobs already seen")
     ap.add_argument("--delay", type=float, default=1.0, help="seconds between companies (be polite)")
     ap.add_argument("--no-feeds", action="store_true", help="skip the free aggregators this run")
+    ap.add_argument("--discover", action="store_true",
+                    help="probe job boards of companies seen in the feeds and add matching ones to companies.json")
+    ap.add_argument("--discover-max", type=int, default=30, help="max companies to probe per run")
+    ap.add_argument("--quiet-days", type=int, default=60,
+                    help="report boards with no title-matching posting for this many days")
     a = ap.parse_args()
 
     from jf_config import data_dir
@@ -479,6 +535,9 @@ def main():
     companies = load_json(data / "companies.json", None) or load_json(ROOT / "config/companies.json", [])
     if isinstance(companies, dict):
         companies = companies.get("companies", [])
+    board_state_p = data / "board_state.json"
+    board_state = load_json(board_state_p, {})
+    feed_companies = {}  # company name -> count of title-matching feed jobs (for --discover)
     seen = set(load_json(data / "seen.json", []))
     tracked = set()
     if (data / "tracker.csv").exists():
@@ -495,9 +554,16 @@ def main():
     out, errors, not_polled, feed_notes, counts = [], [], [], [], {"jobs": 0, "fresh": 0}
     dedupe = set() if a.all else {normalize_url(u) for u in tracked if u}
 
+    excl_cos = [e.lower() for e in s.get("excludeCompanies", [])]
+
+    def title_ok(t):
+        return not any(p.search(t) for p in exclude) and (not require or any(p.search(t) for p in require))
+
     def consider(j, key):
         """One filter pipeline for boards and feeds: age, title, workplace, seen, eligibility, score."""
         counts["jobs"] += 1
+        if excl_cos and any(e == j["company"].lower().strip() for e in excl_cos):
+            return
         j["url"] = normalize_url(j["url"])
         if not j["url"].startswith("https://"):
             return
@@ -546,7 +612,12 @@ def main():
                 time.sleep(a.delay)
         except Exception as e:  # report, never crash the whole run
             errors.append(f"{name} ({ats}/{slug}): {e}"); continue
-        jobs = NORMALISERS[ats](name, raw, slug) if ats == "personio" else NORMALISERS[ats](name, raw)
+        jobs = list(NORMALISERS[ats](name, raw, slug) if ats == "personio" else NORMALISERS[ats](name, raw))
+        st = board_state.setdefault(f"{ats}:{slug}", {})
+        st["checked"] = now.date().isoformat()
+        latest = max((d for d in (parse_date(j["posted"]) for j in jobs if title_ok(j["title"])) if d), default=None)
+        if latest and latest.date().isoformat() > st.get("last_match", ""):
+            st["last_match"] = latest.date().isoformat()
         for j in jobs:
             consider(j, f"{ats}:{slug}:{j['id']}")
 
@@ -578,10 +649,36 @@ def main():
         n_before = len(out)
         for raw in payloads:
             for j in norm_feed(f, raw, now):
+                if title_ok(j["title"]) and j["company"] not in ("", "?"):
+                    feed_companies[j["company"]] = feed_companies.get(j["company"], 0) + 1
                 consider(j, f"{f}:{j['id']}")
         feed_notes.append(f"{credit}: {len(out) - n_before} new")
     if feeds and not a.fixtures:
         state_p.write_text(json.dumps(state, indent=1))
+
+    # ---- grow the list: boards of companies that showed up in the feeds ----
+    discovered = []
+    if a.discover and not a.fixtures and feed_companies:
+        known = {f"{c.get('ats')}:{c.get('slug')}" for c in companies}
+        known_names = {c.get("name", "").lower() for c in companies}
+        excluded = [e.lower() for e in s.get("excludeCompanies", [])]
+        names = [n for n, _ in sorted(feed_companies.items(), key=lambda x: -x[1])
+                 if n.lower() not in known_names and not any(e in n.lower() for e in excluded)]
+        discovered = discover_boards(names, known, title_ok, limit=a.discover_max, delay=a.delay / 2)
+        if discovered:
+            cp = data / "companies.json"
+            cur = load_json(cp, None)
+            if cur is None:  # first time: start from the list we polled
+                cur = {"companies": companies}
+            lst = cur["companies"] if isinstance(cur, dict) else cur
+            lst.extend(discovered)
+            cp.write_text(json.dumps(cur, indent=1, ensure_ascii=False))
+    if not a.fixtures:
+        board_state_p.write_text(json.dumps(board_state, indent=1, sort_keys=True))
+    cutoff = (now - dt.timedelta(days=a.quiet_days)).date().isoformat()
+    quiet = [f"{c['name']} ({c['ats']})" for c in companies if not c.get("disabled")
+             and board_state.get(f"{c['ats']}:{c['slug']}", {}).get("checked")
+             and board_state.get(f"{c['ats']}:{c['slug']}", {}).get("last_match", "") < cutoff]
 
     out.sort(key=lambda j: (-j["prescore"], j["age_days"] or 99))
     (data / "candidates").mkdir(parents=True, exist_ok=True)
@@ -602,6 +699,12 @@ def main():
         print("\nBoards that failed (fix slug or remove):", *errors, sep="\n  ")
     if not_polled:
         print(f"\nNot polled automatically ({len(not_polled)}; check their career pages with web fetch): " + ", ".join(not_polled[:15]))
+    if discovered:
+        print(f"\nNew boards added to companies.json ({len(discovered)}): "
+              + ", ".join(f"{d['name']} ({d['ats']})" for d in discovered) + " - they're polled from the next run")
+    if quiet:
+        print(f"\nQuiet boards (no matching posting in {a.quiet_days} days; consider \"disabled\": true): "
+              + ", ".join(quiet[:25]) + (" ..." if len(quiet) > 25 else ""))
     print(f"\nSaved: {data / 'candidates' / (stamp + '.json')}")
 
 
