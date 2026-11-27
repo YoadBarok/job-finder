@@ -54,7 +54,11 @@ Cheapest and safest sources first. Details, eligibility groups and scoring: `ref
    and in its notes (the feeds ask for that credit). Workable jobs have no description in the feed: open the
    posting before scoring.
 4. Web search for postings on other career pages and job boards in their field and region.
-5. Paid sources (like Apify) only if criteria.md allows it and the person approves each run and its cost.
+5. Paid sources only if criteria.md allows it, within its budget, and with the person's yes for each run (or a
+   standing per-run cap written in criteria.md). The main one is **LinkedIn via Apify** (public search, no login):
+   `python3 SCRIPTS/linkedin_apify.py --data <DATA>` prints the Actor, input and maximum cost; run it with the
+   Apify connector and that cap; save the dataset items to a file; then `poll_boards.py --import <file> --no-feeds`
+   scores them like every other job. Log every run in `<DATA>/apify-runs.csv`. Details: `references/sourcing.md`.
 6. LinkedIn: never automate it and never use their account. Ask them to paste the link or the description.
 
 Gate each job before scoring: posted within `maxAgeDays` (default 14), not a repost, the person can legally take it

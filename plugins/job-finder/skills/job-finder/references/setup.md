@@ -37,7 +37,13 @@ show file names. Never write "TBD" and move on: the readiness check treats it as
    prefixes) that must never appear → `forbidden_terms.txt`. Fine if there are none.
 8. **Form answers** → `apply_profile.json`: email, phone, LinkedIn, portfolio/GitHub/website, work
    authorization answers, notice period.
-9. **Paid job sources:** off unless they want them (explain cost first).
+9. **Paid job sources:** off unless they want them. Offer one in plain words: *"LinkedIn has the most jobs, but I
+   can't search it with your account (LinkedIn forbids it, and it could get your account restricted). For a few
+   cents, an Apify tool can read LinkedIn's public job search without your login: about USD 0.15-0.30 per search
+   for a couple of hundred jobs. Want that? It needs a free Apify account connected to Claude."* If yes, record in
+   criteria.md a total budget (e.g. USD 5) and whether each run needs a yes or may run under a per-run cap
+   (e.g. "LinkedIn via Apify: up to USD 0.30 per run, USD 5 total, no need to ask each time"). Never ask for or
+   accept their LinkedIn cookies, password or session for any tool.
 
 Translate (3) into search.json: `titleRequireAny` (patterns a title must contain, e.g. "designer", "qa|quality|test",
 "product owner|product manager"), `titleInclude` (strong-fit words), `titleExclude`, `strongKeywords` (domain

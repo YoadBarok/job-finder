@@ -267,6 +267,37 @@ def norm_feed(feed, data, now=None):
                             strip_html(j.get("description")) + " " + " ".join(j.get("tags") or []), j.get("salary") or None)
 
 
+def load_import(path) -> list:
+    """Jobs saved from an Apify dataset: a JSON list, {"items": [...]}, or the connector's [{type, text}] wrapper."""
+    data = json.loads(Path(path).read_text())
+    if isinstance(data, list) and data and isinstance(data[0], dict) and "text" in data[0] and "type" in data[0]:
+        data = json.loads(data[0]["text"])
+    if isinstance(data, dict):
+        data = data.get("items", [])
+    return data if isinstance(data, list) else []
+
+
+_REMOTE_TXT = re.compile(r"\b(fully remote|100% remote|remote[- ]first|work remotely|remote role|remote position)\b", re.I)
+
+
+def norm_linkedin_apify(items):
+    """cheap_scraper/linkedin-job-scraper items -> jobs. workType is often empty (LinkedIn's AI search drops it),
+    so remote is read from the description too; the eligibility checks decide the rest."""
+    for j in items:
+        if not isinstance(j, dict) or not j.get("jobTitle"):
+            continue
+        text = strip_html(j.get("jobDescription") or "")
+        wt = str(j.get("workType") or "").lower()
+        wp = "remote" if "remote" in wt else "hybrid" if "hybrid" in wt else "onsite" if "site" in wt else None
+        sal = j.get("salaryInfo") or []
+        url = j.get("applyUrl") if str(j.get("applyUrl") or "").startswith("https://") and "linkedin.com" not in str(j.get("applyUrl")) else j.get("jobUrl")
+        yield {"company": j.get("companyName") or "?", "ats": "linkedin", "id": str(j.get("jobId") or j.get("jobUrl")),
+               "title": j["jobTitle"], "location": j.get("location") or "", "posted": j.get("publishedAt"),
+               "url": url or "", "text": text, "salary": " - ".join(sal) if sal else None,
+               "remote_flag": bool(_REMOTE_TXT.search(text)) or wp == "remote", "workplace": wp,
+               "source": "LinkedIn (public search, via Apify)", "source_url": j.get("jobUrl") or ""}
+
+
 def feed_queries(s) -> list[str]:
     """Search words for the feeds that take a query: the person's own role words, at most 3."""
     qs = s.get("feedQueries") or []
@@ -522,6 +553,8 @@ def main():
     ap.add_argument("--all", action="store_true", help="include jobs already seen")
     ap.add_argument("--delay", type=float, default=1.0, help="seconds between companies (be polite)")
     ap.add_argument("--no-feeds", action="store_true", help="skip the free aggregators this run")
+    ap.add_argument("--import", dest="import_file",
+                    help="also score jobs saved from a paid Apify LinkedIn run (see linkedin_apify.py)")
     ap.add_argument("--discover", action="store_true",
                     help="probe job boards of companies seen in the feeds and add matching ones to companies.json")
     ap.add_argument("--discover-max", type=int, default=30, help="max companies to probe per run")
@@ -655,6 +688,13 @@ def main():
         feed_notes.append(f"{credit}: {len(out) - n_before} new")
     if feeds and not a.fixtures:
         state_p.write_text(json.dumps(state, indent=1))
+
+    # ---- jobs saved from an approved, paid Apify LinkedIn run ----
+    if a.import_file:
+        n_before = len(out)
+        for j in norm_linkedin_apify(load_import(a.import_file)):
+            consider(j, f"linkedin:{j['id']}")
+        feed_notes.append(f"LinkedIn via Apify (imported): {len(out) - n_before} new")
 
     # ---- grow the list: boards of companies that showed up in the feeds ----
     discovered = []

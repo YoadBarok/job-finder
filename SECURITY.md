@@ -7,7 +7,8 @@
   its **first line**, to recognise a Job Finder folder. Nothing else is opened.
 - **The internet:** public job-board feeds (Greenhouse, Ashby, Lever, Workable, Recruitee, Personio), free job
   feeds (Arbeitnow, Jobicy, Remote OK, Himalayas, Remotive; set `"feeds": []` in search.json to turn them off),
-  company career pages and web search, to read job postings. Nothing is uploaded or submitted anywhere.
+  company career pages and web search, to read job postings. Optional and paid, only if you turn it on:
+  LinkedIn's public job search through an Apify Actor (signed out; your LinkedIn login is never used). Nothing is uploaded or submitted anywhere.
 - **A settings file** at `~/.config/job-finder/config.json` that stores the path of your folder.
 
 ## What it never does

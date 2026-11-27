@@ -195,3 +195,41 @@ class Discovery(unittest.TestCase):
         out, _ = EndToEnd().run_poll({"homeCountry": ["Czechia"], "authorized": ["EU"], "feeds": ["jobicy"],
                                       "excludeCompanies": ["Gamma"]}, [])
         self.assertEqual(out, [])
+
+
+class LinkedInViaApify(unittest.TestCase):
+    ITEMS = [{"jobId": "1", "jobTitle": "Senior Backend Engineer", "companyName": "Acme", "location": "Prague, Czechia",
+              "publishedAt": D(2).isoformat(), "jobDescription": "Fully remote within Czechia. TypeScript, Node.js.",
+              "jobUrl": "https://cz.linkedin.com/jobs/view/1", "applyUrl": "https://jobs.ashbyhq.com/acme/1",
+              "workType": "", "salaryInfo": []},
+             {"jobId": "2", "jobTitle": "Senior Backend Engineer", "companyName": "Make", "location": "Prague, Czechia",
+              "publishedAt": D(2).isoformat(), "jobDescription": "x", "jobUrl": "https://cz.linkedin.com/jobs/view/2"}]
+
+    def test_input_builder(self):
+        sys.path.insert(0, str(SK / "scripts"))
+        from linkedin_apify import build_input, max_cost
+        inp = build_input({"homeCountry": ["Czechia", "Prague"], "titleRequireAny": ["engineer", "developer"],
+                           "titleExclude": ["manager", "\\bvp\\b", "c\\+\\+"], "workplaces": ["remote", "hybrid"],
+                           "excludeCompanies": ["Make"]}, 100)
+        self.assertEqual(inp["locations"], ["Czechia"])
+        self.assertEqual(inp["keyword"], ["engineer", "developer"])
+        self.assertEqual(inp["workType"], ["remote", "hybrid"])
+        self.assertIn("vp", inp["jobTitleExclude"]); self.assertIn("manager", inp["jobTitleExclude"])
+        self.assertEqual(inp["companyExclude"], ["Make"])
+        self.assertAlmostEqual(max_cost(100), 0.075)
+
+    def test_import_wrapper_and_pipeline(self):
+        d = tempfile.mkdtemp()
+        f = Path(d, "li.json")
+        f.write_text(json.dumps([{"type": "text", "text": json.dumps({"items": self.ITEMS})}]))  # connector wrapper
+        Path(d, "search.json").write_text(json.dumps({"homeCountry": ["Czechia", "Prague"], "authorized": ["EU"],
+                                                      "excludeCompanies": ["Make"], "feeds": []}))
+        Path(d, "companies.json").write_text(json.dumps([{"name": "x", "ats": "ashby", "slug": "x", "disabled": True}]))
+        r = subprocess.run([sys.executable, str(SK / "scripts/poll_boards.py"), "--data", d, "--import", str(f),
+                            "--no-save"], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        out = json.loads(next(Path(d, "candidates").glob("*.json")).read_text())
+        self.assertEqual([j["company"] for j in out], ["Acme"])            # Make excluded
+        self.assertEqual(out[0]["url"], "https://jobs.ashbyhq.com/acme/1")  # employer link preferred
+        self.assertTrue(out[0]["source"].startswith("LinkedIn"))
+        self.assertIn("LinkedIn via Apify", r.stdout)
