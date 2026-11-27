@@ -321,6 +321,17 @@ OPEN = [r"\banywhere\b", r"\bworldwide\b", r"\bglobal(?:ly)?\b", r"\bemea\b", r"
         r"\bcet\b", r"\bcest\b", r"\bdistributed\b"]
 US_PART = re.compile(r"(?<![a-z])(?:u\.?s\.?a?|united states|usa|americas?|north america)(?![a-z])", re.I)
 CA_PART = re.compile(r"(?<![a-z])canada(?![a-z])", re.I)
+US_STATE = re.compile(r",\s*(?:A[KLRZ]|C[AOT]|D[CE]|FL|GA|HI|I[ADLN]|K[SY]|LA|M[ADEINOST]|N[CDEHJMVY]|O[HKR]|PA|RI|S[CD]|T[NX]|UT|V[AT]|W[AIVY])\s*$"
+                      r"|,\s*(?:alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|"
+                      r"hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|"
+                      r"michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|"
+                      r"new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|"
+                      r"south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|"
+                      r"wisconsin|wyoming)\s*$", re.I)
+REGION_WORDS = {"eu", "europe", "european union", "emea", "eea"}
+REGION_TEXT = re.compile(r"\b(?:anywhere in (?:the )?(?:eu|europe|emea|eea)|(?:remote|work|hire|hiring|based) (?:anywhere )?"
+                         r"(?:in|within|across|from) (?:the )?(?:eu|europe|emea|eea|european union)|"
+                         r"(?:eu|europe|emea)[- ]wide)\b", re.I)
 GENERIC = re.compile(r"^(?:remote|fully remote|remote[- ]first|distributed|home[- ]based|work from home|anywhere)?$", re.I)
 ONSITE = re.compile(r"\b(?:hybrid|on-?site|in[- ]office|office[- ]based)\b", re.I)
 TZ_RANGE = re.compile(r"(?:utc|gmt)\s*([+\-−]\s*\d{1,2})?\s*(?:to|-|–)\s*(?:utc|gmt)\s*([+\-−]\s*\d{1,2})", re.I)
@@ -404,6 +415,8 @@ def classify(job, home: list[str], home_utc: float | None = None, authorized: li
     tz = TZ_RANGE.search(loc) or TZ_RANGE.search(text)
     if tz and home_utc is not None and _off(tz.group(1)) <= home_utc <= _off(tz.group(2)):
         return "A", [f"time-zone range {tz.group(0)} includes home (UTC{home_utc:+g})"]
+    if US_STATE.search(loc.strip()):  # "Dublin, OH" is in Ohio, not Ireland
+        loc = "United States (" + loc.strip() + ")"
     parts = split_location(loc)
     kinds = []
     for p in parts:
@@ -420,6 +433,11 @@ def classify(job, home: list[str], home_utc: float | None = None, authorized: li
             elif c == "canada": kinds.append("ca")
             else: kinds.append("other")
     if "home" in kinds or "auth" in kinds:
+        # A remote role listed only for one other country ("Remote within Poland", "Portugal") usually means the
+        # employer hires through its entity there, i.e. you must live there. A work permit alone isn't enough.
+        regional = any(r in p for p in parts for r in REGION_WORDS) or bool(REGION_TEXT.search(text))
+        if "home" not in kinds and "open" not in kinds and not regional:
+            return "A", [f"listed for {loc} only: usually means living there - check before applying"]
         return "A", [f"location fits where you can work ({loc})"]
     if "open" in kinds:
         return "A", [f"location: {loc}"]
@@ -450,6 +468,8 @@ def score(job, s) -> tuple[int, list[str]]:
     if hits: why.append("keywords: " + ", ".join(hits[:6]))
     stack = [k for k in s.get("stackKeywords", []) if re.search(rf"\b{re.escape(k.lower())}\b", text)]
     pts += min(20, 5 * len(stack))
+    if any("usually means living there" in r for r in job.get("eligibility", [])):
+        pts -= 20; why.append("country-locked listing (likely needs residence there)")
     if stack: why.append("stack: " + ", ".join(stack[:5]))
     if job.get("salary"):
         pts += 5; why.append(f"pay: {job['salary']}")

@@ -83,6 +83,13 @@ out), so the person's account is never involved. It still breaks LinkedIn's term
 - Learned on a real run: region-wide locations ("European Union") return mostly office jobs tied to cities in other
   countries, because LinkedIn's AI search ignores the remote filter. The Actor's `workType` is often empty;
   poll_boards reads remote/hybrid from the description and the eligibility checks do the rest.
+- Other countries: one run per location (so a big market doesn't crowd out the rest). From a real run (Prague-based
+  person): "United States" + remote returned only US-employment roles (US residents, 401k); "Israel" + remote only
+  Israel-based ones; "European Union" + remote mostly one-country roles plus a few EMEA-wide gems (Dash0). Suggest
+  foreign locations only where the person can be employed or works as a contractor, and say what to expect.
+- Country-locked listings: a remote role listed for one other country ("Portugal", "Remote within Poland") usually
+  needs residence there. poll_boards flags these ("usually means living there") and lowers the score by 20,
+  unless the text says it hires across Europe/EMEA.
 - Large outputs: fetch the dataset items with the connector; if the result is saved to a file, pass that file to
   `--import` as is (the connector wrapper is understood). Prefer the employer's own apply link when the item has
   one; credit "found via LinkedIn" in notes.md.

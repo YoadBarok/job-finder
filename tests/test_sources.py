@@ -233,3 +233,30 @@ class LinkedInViaApify(unittest.TestCase):
         self.assertEqual(out[0]["url"], "https://jobs.ashbyhq.com/acme/1")  # employer link preferred
         self.assertTrue(out[0]["source"].startswith("LinkedIn"))
         self.assertIn("LinkedIn via Apify", r.stdout)
+
+
+class Eligibility(unittest.TestCase):
+    def cls(self, loc, text=""):
+        from poll_boards import classify
+        return classify({"location": loc, "text": text}, ["Czechia", "Prague"], 1, ["EU"], True)
+
+    def test_country_locked_eu_remote_flagged(self):
+        g, why = self.cls("Portugal", "Fully remote anywhere in Portugal.")
+        self.assertEqual(g, "A"); self.assertIn("usually means living there", why[0])
+
+    def test_region_wide_not_flagged(self):
+        self.assertNotIn("living there", self.cls("EMEA - Remote")[1][0])
+        self.assertNotIn("living there", self.cls("Germany", "We hire remotely anywhere in Europe.")[1][0])
+        self.assertNotIn("living there", self.cls("Prague, Czechia")[1][0])
+
+    def test_us_state_not_european_city(self):
+        g, _ = self.cls("Dublin, OH")
+        self.assertEqual(g, "B")
+
+    def test_country_locked_scores_lower(self):
+        from poll_boards import score
+        s = {"titleRequireAny": ["engineer"]}
+        j = {"title": "Senior Engineer", "text": "", "age_days": 3, "salary": None,
+             "eligibility": ["listed for Portugal only: usually means living there - check before applying"]}
+        k = dict(j, eligibility=["location fits"])
+        self.assertEqual(score(k, s)[0] - score(j, s)[0], 20)
